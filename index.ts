@@ -15,9 +15,29 @@ const api = alb.createListener('api', {
 });
 
 // 3. Build and publish Docker image to ECR
-const img = awsx.ecs.Image.fromPath('app-img', './app');
+const img = awsx.ecs.Image.fromPath('nodejs-app-img', './app');
 
 // 4. Create a Fargate service task definition
+const farfateTaskDefinition = new awsx.ecs.FargateTaskDefinition(
+  'nodejs-fargate-task',
+  {
+    containers: {
+      simpleNodeApiServer: {
+        image: img,
+        logConfiguration: {
+          logDriver: 'awslogs',
+          options: {
+            'awslogs-region': 'ap-southeast-1',
+            'awslogs-group': 'nodejs-fargate-task',
+            'awslogs-stream-prefix': 'awslogs-nodejs-example',
+          },
+        },
+      },
+    },
+  }
+);
+
+// 5. Create a Fargate service
 const appService = new awsx.ecs.FargateService('app-svc', {
   cluster,
   taskDefinitionArgs: {
@@ -28,6 +48,7 @@ const appService = new awsx.ecs.FargateService('app-svc', {
       portMappings: [api],
     },
   },
+  taskDefinition: farfateTaskDefinition,
   desiredCount: 5,
 });
 
